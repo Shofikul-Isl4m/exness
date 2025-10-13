@@ -1,0 +1,24 @@
+{
+  "name": "@repo/redis",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  },
+  "exports": {
+    "./redis": "./src/index.ts",
+    "./pubsub": "./src/pubsub.ts",
+    "./queue": "./src/queue.ts"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "redis": "^5.8.3"
+  }
+}
