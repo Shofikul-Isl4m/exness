@@ -1,6 +1,5 @@
 import { RedisClientType } from "redis";
-import client from "./index";
-
+import client from "./index.js";
 export const priceUpdatePusher: RedisClientType = client.duplicate();
 
 export const tradePusher: RedisClientType = client.duplicate();
