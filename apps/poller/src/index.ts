@@ -53,7 +53,7 @@ const data : BackpackDataType = JSON.parse(msg.data.toString()).data;
 
  const bidPriceStr = Number(data.b).toFixed(4);
  const bidPriceIntStr = bidPriceStr.split(".")[0]! + bidPriceStr.split(".")[1];
- const bid_price = Number(askPriceIntStr);
+ const bid_price = Number(bidPriceIntStr);
  
  const filteredData : FilteredDataType = {
     ask_price,

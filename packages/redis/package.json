@@ -8,7 +8,7 @@
     "@repo/typescript-config": "workspace:*"
   },
   "exports": {
-    "./redis": "./dist/index.js",
+    "./index": "./dist/index.js",
     "./pubsub": "./dist/pubsub.js",
     "./queue": "./dist/queue.js"
   },

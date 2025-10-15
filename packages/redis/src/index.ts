@@ -5,4 +5,5 @@ const client: RedisClientType = createClient({
 });
 
 export default client;
-export type typeOfRedisClientType = RedisClientType;
+export type TypeOfRedisClient = RedisClientType;
+
