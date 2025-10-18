@@ -1,17 +1,28 @@
 import { typeOfRedisClientType } from "@repo/redis/index"
-import client from "@repo/redis/index"
+import {Message, MessageSchema, PriceUpdateMsg, TradeOpenMsg} from "@repo/types/zodSchema"
+import {EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
+import z, { json, number, object } from "zod"
 export class Engine {
      constructor (
         private readonly enginePuller : typeOfRedisClientType,
         private readonly enginePusher : typeOfRedisClientType
      )  {}
-
+    
+      
 
      private readonly streamKey = "stream:app:info";
      private readonly groupName = "group-1"
      private readonly consumerName ="consumer-1"
      private lastConsumedStreamId = ""
      private lastSnapShotAt = Date.now()
+     private openOrders : Record<string,openOrders[]> = {};
+     private userBalace : Record<string,userBalace>= {}
+     private currentPrice : Record<string,FilteredDataType> = {
+      "BTC_USDC_PERP" : {ask_price : 0 ,bid_price : 0,    decimal:4},
+      "ETH_USDC_PERP" :{ask_price : 0 ,bid_price : 0,    decimal:4},
+      "SOL_USDC_PERP" :{ask_price : 0 ,bid_price : 0,    decimal:4},
+     }
+      
 
      async run() :Promise<void> {
        await this.enginePuller.connect();
@@ -73,7 +84,139 @@ export class Engine {
 
     }
 
-  
+  private parseMessage (raw:unknown):Message {
+    return MessageSchema.parse(raw);
+
+  }
+
+
+  private async handleMessage (msg:Message){
+    switch(msg.type){
+      case "price-update" : 
+      await this.handlePriceUpdate(PriceUpdateMsg.parse(msg));
+     case "trade-open" :
+      await this.handleTradeOpen(TradeOpenMsg.parse(msg)); 
+
+
+        
+
+  }
+
+  } 
+
+  private async handlePriceUpdate(msg : z.infer<typeof PriceUpdateMsg>) {
+            const tradePrices = JSON.parse(msg.tradePrices);
+            
+            for(const [key,value] of Object.entries(tradePrices)){
+                this.currentPrice[key] = value as FilteredDataType
+            }
+
+            for (const [userId , orders] of Object.entries(this.openOrders)){
+                for( const order of [...orders]){
+             const price = this.currentPrice[order.asset];
+             if(!price) continue ;
+            
+              const assetPrice = order.type === "long" ? price.bid_price : price.ask_price;
+
+              if(assetPrice === null) continue;
+
+              const priceChange = order.type === "long" ? assetPrice - order.openPrice : order.openPrice-assetPrice;
+
+              const pnl = (priceChange * order.leverage * order.margin)  / 10 ** 4;
+
+              const pnlStr = pnl.toFixed(4);
+              const pnlIntStr = pnlStr.split(".")[0]! + pnlStr.split(".")[1] ; 
+              const pnlInt = Number(pnlIntStr);
+              
+              const lossTakingCapacity = order.margin / order.leverage;
+              const  lossTakingCapacityStr = lossTakingCapacity.toFixed(4);
+              const lossTakingCapacityIntStr = lossTakingCapacityStr.split(".")[0]! + lossTakingCapacityStr.split(".")[1];
+              const lossTakingCapacityInt = Number(lossTakingCapacityIntStr);
+
+              if (pnlInt < -0.9 * lossTakingCapacityInt){
+                      const newBlance = pnlInt + order.margin;
+                       this.userBalace[userId] = {
+                        balance : this.userBalace[userId]!.balance + newBlance;
+                        decimal : 4
+                       }
+
+              
+
+
+              this.openOrders[userId] = this.openOrders[userId]!.filter((o) => {
+                o.id !== userId
+              })
+
+              const closeOrder = {
+              ...order,
+              closeOrder : assetPrice,
+              pnl : pnlInt,
+              decimal : 4,
+              liquidated : true,
+              userId,
+
+              }
+
+
+              
+            }
+
+ 
+
+
+
+
+                }
+
+
+            }
+        
+     
+ }
+
+ private async handleTradeopen(msg:z.infer<typeof TradeOpenMsg>) : EngineResponseType{
+
+const  tradeInfo = JSON.parse(msg.tradeInfo) as {
+  type : orderType,
+  asset : string,
+  leverage : number,
+  quantity : number,
+  openprice : number,
+  slippage : number
+};
+
+const userId = msg.userId
+const assetCurrentPrice = this.currentPrice[tradeInfo.asset];
+
+ 
+ if(!assetCurrentPrice){
+   return {
+     type : "trade-open-err",
+     reqId : msg.reqId,
+     playload : {
+      message : ""
+   }
+   }
+
+
+ }
+
+ if(!this.userBalace[userId]){
+  return{
+   type : "trade-open-err",
+   reqId : msg.reqId,
+   playload : {
+    message : ""
+   }
+
+  }
+
+
+ }
+
+
+
+ }
 
 
 

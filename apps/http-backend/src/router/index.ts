@@ -1,4 +1,5 @@
 import { Router } from "express";
+import tradeRouter from "./traderRouter";
 
 const router:Router = Router();
 

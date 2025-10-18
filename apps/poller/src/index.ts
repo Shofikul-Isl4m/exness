@@ -79,15 +79,14 @@ console.log(assertPrices)
 
    publisher.publish("ws:price:update",JSON.stringify(dataToBeSent))
    priceUpdatePusher.xAdd("stream:app:info","*",{
-      requId : "no return",
+      reqId : "no return",
       type :  "price-update",
       tradePrices : JSON.stringify(dataToBeSent)
    })
 
    lastInsertTime = Date.now();
-
-
  }
+
 
 
 

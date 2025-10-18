@@ -5,6 +5,12 @@ bid_price : number,
 decimal : number
 }
 
+export type userBalace = {
+   balance : number,
+   decimal : number
+  
+}
+
 
 
 export type BackpackDataType = {
@@ -18,6 +24,29 @@ e:string,
 s:string,
 u:string
 
+}
+
+export enum orderType  {
+  long = "long",
+  short = "short"
+}  
+
+export type  openOrders = {
+  
+  id : string,
+  openPrice : number,
+  leverage:number,
+  asset : string,
+  margin : number,
+  quantity : number,
+  type : orderType
+
+}
+
+export type EngineResponseType = {
+  type : string,
+  reqId : string,
+  playload : unknown
 }
 
 
