@@ -13,7 +13,7 @@ export class Engine {
      private readonly streamKey = "stream:app:info";
      private readonly groupName = "group-1"
      private readonly consumerName ="consumer-1"
-     private lastConsumedStreamId = ""
+     private lastConsumedStreamId = "...d"
      private lastSnapShotAt = Date.now()
      private openOrders : Record<string,openOrders[]> = {};
      private userBalace : Record<string,userBalace>= {}
