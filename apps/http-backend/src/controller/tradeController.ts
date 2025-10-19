@@ -1,4 +1,4 @@
-import { tradePusher } from "@repo/redis/queue"
+import {tradePusher} from "@repo/redis/queue"
 import { json, Request, Response } from "express"
 import {createOrderSchema } from "@repo/types/zodSchema"
 

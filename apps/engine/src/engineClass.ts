@@ -5,7 +5,8 @@ import z, { json, number, object } from "zod"
 export class Engine {
      constructor (
         private readonly enginePuller : typeOfRedisClientType,
-        private readonly enginePusher : typeOfRedisClientType
+        private readonly enginePusher : typeOfRedisClientType,
+        private readonly mongo : 
      )  {}
     
       
@@ -16,17 +17,21 @@ export class Engine {
      private lastConsumedStreamId = "...d"
      private lastSnapShotAt = Date.now()
      private openOrders : Record<string,openOrders[]> = {};
-     private userBalace : Record<string,userBalace>= {}
+     private userBalace : Record<string,userBalace>= {};
+     private dbName = "exness-snapshot";
+     private collectionName = "engine-backup"
+
      private currentPrice : Record<string,FilteredDataType> = {
-      "BTC_USDC_PERP" : {ask_price : 0 ,bid_price : 0,    decimal:4},
-      "ETH_USDC_PERP" :{ask_price : 0 ,bid_price : 0,    decimal:4},
-      "SOL_USDC_PERP" :{ask_price : 0 ,bid_price : 0,    decimal:4},
+      "BTC_USDC_PERP" :{ask_price:0 ,bid_price:0, decimal:4},
+      "ETH_USDC_PERP" :{ask_price : 0 ,bid_price:0,decimal:4},
+      "SOL_USDC_PERP" :{ask_price : 0 ,bid_price:0,decimal:4},
      }
       
 
      async run() :Promise<void> {
        await this.enginePuller.connect();
        await this.enginePusher.connect();
+       await this.mongo.connect();
          
        try {
          await this.enginePuller.xGroupCreate(this.streamKey,this.groupName,"0",{
@@ -95,7 +100,7 @@ export class Engine {
       case "price-update" : 
       await this.handlePriceUpdate(PriceUpdateMsg.parse(msg));
      case "trade-open" :
-      await this.handleTradeOpen(TradeOpenMsg.parse(msg)); 
+      await this.handleTradeopen(TradeOpenMsg.parse(msg)); 
 
 
         
@@ -210,14 +215,131 @@ const assetCurrentPrice = this.currentPrice[tradeInfo.asset];
    }
 
   }
+ }
 
+
+let assetPrice : number;
+let priceDiff : number;
+
+if(tradeInfo.type === "long"){
+   assetPrice = assetCurrentPrice.ask_price;
+   priceDiff = Math.abs(assetPrice - tradeInfo.openprice);
+
+}else {
+  assetPrice = assetCurrentPrice.bid_price;
+  priceDiff = Math.abs(assetPrice - tradeInfo.openprice);
+}
+
+const priceDiffPercentage = (priceDiff / tradeInfo.openprice) * 100;
+if(priceDiffPercentage > tradeInfo.slippage){
+
+return {
+   type : "treade-open-err",
+   reqId : msg.reqId,
+   playload: {
+    message :  "slippage exceeded"
+   }
+  }
+}
+
+const margin = (tradeInfo.openprice * tradeInfo.quantity) / (tradeInfo.leverage * 10*4 );
+ 
+ const marginStr = margin.toFixed(4);
+ const marginIntStr = marginStr.split(".")[0]! + marginStr.split(".")[1];
+ const marginInt = Number(marginIntStr);
+
+ const newBal = this.userBalace[userId].balance - margin;
+ if(newBal < 0){
+  return {
+    type : "trade-open-err",
+    reqId : msg.reqId,
+    playload : {
+      message : "user does not have enough balance"
+    }
+
+  }
+
+ }
+
+ const orderId = crypto.randomUUID();
+
+ const order : openOrders = {
+   id:  orderId,
+   type : tradeInfo.type as unknown as orderType,
+   leverage : tradeInfo.leverage,
+   asset : tradeInfo.asset,
+   margin : marginInt,
+   quantity : tradeInfo.quantity,
+   openPrice : assetPrice
+
+ };
+
+ (!this.openOrders[userId]){
+  this.openOrders[userId] = [];
 
  }
 
 
+ this.openOrders[userId].push(order);
+ 
+ 
+
+
+
+  this.userBalace[userId] = {
+    balance : newBal ,
+    decimal: 4 
+
+  }
+
+  return{
+    type : "trade-open-ack",
+    reqId : msg.reqId,
+    playload :{
+      message: "Order Created",
+      orderId,
+      order
+    }
+  }
 
  }
 
+ private async persistSnapShot () : Promise<void>{
+  const db = this.mongo.db(this.dbName);
+  const collection = db.collection(this.collectionName);
+  this.lastSnapShotAt = Date.now();
+  const data = {
+          currentPrice : this.currentPrice,
+          userBalace : this.userBalace,
+          openOrders : this.openOrders,
+          lastConsumedStreamId : this.lastConsumedStreamId,
+          lastSnapShotAt :  this.lastSnapShotAt 
+  }
+
+    await collection.findOneAndReplace(
+       {id :"dump"},
+       {id: "dump" ,data},
+       {upsert : true}
+    )
+}
+  
+private async loadSnapShot () : Promise<void>{
+  const db = this.mongo.db(this.dbName);
+  const collection = db.collection(this.collectionName);
+  const doc = await collection.find({id : "dump"});
+   if(!doc) return ;
+   
+    this.currentPrice = doc.data.currentPrice;
+    this.userBalace = doc.data.userBalace ,
+    this.openOrders = doc.data.openOrders ,
+    this.lastConsumedStreamId = doc.data.lastConsumedStreamId ,
+     this.lastSnapShotAt = doc.data.lastSnapShotAt  
 
 
 }
+
+
+}
+
+
+ 
