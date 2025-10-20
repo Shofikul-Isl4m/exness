@@ -1,7 +1,7 @@
 import { typeOfRedisClientType } from "@repo/redis/index"
-import {Message, MessageSchema, PriceUpdateMsg, TradeOpenMsg} from "@repo/types/zodSchema"
-import {EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
-import z, { json, number, object } from "zod"
+import {GetAssetbalMsg, Message, MessageSchema, PriceUpdateMsg, TradeCloseMsg, TradeOpenMsg} from "@repo/types/zodSchema"
+import {AssetBal, EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
+import z from "zod"
 export class Engine {
      constructor (
         private readonly enginePuller : typeOfRedisClientType,
@@ -96,11 +96,16 @@ export class Engine {
 
 
   private async handleMessage (msg:Message){
+    let res : EngineResponseType | undefined = undefined;
     switch(msg.type){
       case "price-update" : 
       await this.handlePriceUpdate(PriceUpdateMsg.parse(msg));
      case "trade-open" :
-      await this.handleTradeopen(TradeOpenMsg.parse(msg)); 
+     res = await this.handleTradeOpen(TradeOpenMsg.parse(msg));
+      case "trade-close" : 
+      res = await this.handleTradeClose(TradeCloseMsg.parse(msg)) 
+      case "get-asset-bal": 
+      res = await this.handleGetAssetBalance(GetAssetbalMsg.parse(msg));
 
 
         
@@ -179,7 +184,7 @@ export class Engine {
      
  }
 
- private async handleTradeopen(msg:z.infer<typeof TradeOpenMsg>) : EngineResponseType{
+ private async handleTradeOpen(msg:z.infer<typeof TradeOpenMsg>) : EngineResponseType{
 
 const  tradeInfo = JSON.parse(msg.tradeInfo) as {
   type : orderType,
@@ -334,6 +339,132 @@ private async loadSnapShot () : Promise<void>{
     this.openOrders = doc.data.openOrders ,
     this.lastConsumedStreamId = doc.data.lastConsumedStreamId ,
      this.lastSnapShotAt = doc.data.lastSnapShotAt  
+
+
+}
+
+
+private async handleTradeClose (msg : z.infer<typeof TradeCloseMsg>):Promise<EngineResponseType> {
+      
+      const userId = msg.userId;
+      const orderId = msg.orderId;
+
+       if(!this.userBalace[userId]){
+          return {
+            type : "close-trade-err",
+            reqId : msg.reqId,
+            playload : {
+                  message : "user does not exist (user does not found in balance array)"               
+            }
+          }
+
+       }
+
+      let order : openOrders | undefined ;
+       this.openOrders[userId]?.forEach(o => {
+        if(o.id === orderId){
+          order = o;
+        }
+        
+      });
+
+      if(!order){
+       return {
+        type : "trade-close-err",
+        reqId : msg.reqId,
+        playload : {
+          message : "order does not exist (order does not found in open orders)"
+        }
+       }
+      }
+
+      const assetCurrentPrice = this.currentPrice[order.asset];
+      if(!assetCurrentPrice){
+        return {
+          type : "trade-close-err",
+          reqId: msg.reqId,
+          playload : {
+            message : 'asset does not exist (asset not found in currentprice )'
+          }
+        }
+      }
+      let closePrice : number;
+      let priceChange : number;
+      
+      if(order.type === "long"){
+       closePrice = assetCurrentPrice.bid_price;
+       priceChange = closePrice - order.openPrice;
+      }else{
+        closePrice = assetCurrentPrice.ask_price;
+        priceChange = order.openPrice - closePrice;
+ }
+
+  const pnl = (priceChange * order.leverage * order.quantity) / 10 ** 4;
+  
+  const pnlStr = pnl.toFixed(4);
+  const pnlIntStr = pnlStr.split(".")[0]! + pnlStr.split(".")[1];
+  const pnlInt = Number(pnlIntStr);
+
+  const newBlance = order.margin + pnl;
+
+  this.userBalace[userId] ={
+    balance : this.userBalace[userId].balance + newBlance ,
+    decimal : 4,
+  }
+  
+   this.openOrders[userId]?.filter((o)=>{
+    o.id !== orderId
+
+   })
+  
+  const closeOrder = {
+    ...order,
+    pnlInt,
+    closePrice,
+    decimal :4,
+    liqudated : false,
+    userId ,
+  }
+
+  return {
+   type : "trade-close-ack",
+   reqId : msg.reqId,
+   playload: {
+    message : "Order Closed",
+    orderId,
+    userBal : this.userBalace[userId]
+   }
+
+
+  }
+}
+
+
+private async handleGetAssetBalance (msg : z.infer<typeof GetAssetbalMsg>):Promise<EngineResponseType> {
+   const userId = msg.userId;
+   
+    const assetBal :AssetBal = {
+      "BTC_USDC_PERP" :{balance : 0 ,decimal : 4},
+      "ETH_USDC_PERP" : {balance : 0 ,decimal :4},
+      "SOL_USDC_PERP" : {balance : 0 ,decimal :4},
+  }
+      
+    this.openOrders[userId]?.forEach( o  => {
+      if(o.type === "long" ){
+        assetBal[o.asset]!.balance += o.margin;
+      }else{
+        assetBal[o.asset]!.balance -= o.margin;
+      }
+      
+    });
+    
+    return{
+      type : "get-asset-bal",
+      reqId : msg.reqId,
+      playload : {
+        assetBal
+      }
+    }
 
 
 }

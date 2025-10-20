@@ -39,6 +39,18 @@ export const TradeOpenMsg = BaseMsg.extend({
 
 })
 
+export const TradeCloseMsg = BaseMsg.extend({
+   type : z.literal("trade-close"),
+   userId : z.string(),
+   orderId : z.string()
+
+})
+
+export const GetAssetbalMsg = BaseMsg.extend({
+    type : z.literal("get-asset-bal"),
+    userId : z.string(),
+})
+
 
 
 
@@ -46,7 +58,9 @@ export const TradeOpenMsg = BaseMsg.extend({
 export const MessageSchema = z.discriminatedUnion("type",[
    userAuthMsg,
    PriceUpdateMsg,
-   TradeOpenMsg
+   TradeOpenMsg,
+   TradeCloseMsg,
+   GetAssetbalMsg
 ])
 
 export type Message = z.infer<typeof MessageSchema>;

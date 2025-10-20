@@ -49,4 +49,8 @@ export type EngineResponseType = {
   playload : unknown
 }
 
+export type AssetBal = Record<string,
+{balance : number,decimal : number}
+>
+  
 
