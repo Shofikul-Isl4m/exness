@@ -1,7 +1,7 @@
 import z, { string } from "zod";
 
 
-export const createOrderSchema = z.object({
+export const CreateOrderSchema = z.object({
     asset : z.string(),
     type : z.enum(["long","short"]),
     quantity : z.number(),
@@ -29,6 +29,11 @@ export const PriceUpdateMsg = BaseMsg.extend({
 
 })
 
+export const  GetUserBalMsg = BaseMsg.extend({
+    type : z.literal("get-user-bal"),
+    userId : z.string()
+
+})
 
 export const TradeOpenMsg = BaseMsg.extend({
 
@@ -51,6 +56,11 @@ export const GetAssetbalMsg = BaseMsg.extend({
     userId : z.string(),
 })
 
+export const FetchOpenTradesMsg = BaseMsg.extend({
+    type : z.literal("fetch-open-trades"),
+    userId : z.string(),
+})
+
 
 
 
@@ -60,7 +70,9 @@ export const MessageSchema = z.discriminatedUnion("type",[
    PriceUpdateMsg,
    TradeOpenMsg,
    TradeCloseMsg,
-   GetAssetbalMsg
+   GetAssetbalMsg,
+   GetUserBalMsg,
+   FetchOpenTradesMsg
 ])
 
 export type Message = z.infer<typeof MessageSchema>;

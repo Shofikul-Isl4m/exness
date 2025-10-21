@@ -1,7 +1,6 @@
-import {tradePusher} from "@repo/redis/queue"
-import { json, Request, Response } from "express"
-import {createOrderSchema } from "@repo/types/zodSchema"
-
+import { tradePusher } from "@repo/redis/queue";
+import { Request, Response } from "express";
+import {CreateOrderSchema} from "@repo/types/zodSchema"
 
 (async()=>{
     await tradePusher.connect()
@@ -10,7 +9,7 @@ import {createOrderSchema } from "@repo/types/zodSchema"
 
  const openTradeController =async(req: Request,res:Response ) => {
 
-    const validInput = createOrderSchema.safeParse(req.body);
+    const validInput = CreateOrderSchema.safeParse(req.body);
 
     if(!validInput.success){
         res.status(411).json({
@@ -24,12 +23,22 @@ import {createOrderSchema } from "@repo/types/zodSchema"
      const reqId = Date.now().toString() + crypto.randomUUID(); 
      const tradeInfo = JSON.stringify(validInput.data);
 
-     tradePusher.xAdd("stream:app:info","*",{
-        type: "trade-open",
-        tradeInfo,
-        userId,
-        reqId,
-     })
+     try {
+       await tradePusher.xAdd("stream:app:info","*",{
+            type: "trade-open",
+            tradeInfo,
+            userId,
+            reqId,
+         })
+           
+     const res 
+
+     } catch (error) {
+        
+     }
+
+ 
+
 
 
  

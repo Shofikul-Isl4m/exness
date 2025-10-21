@@ -1,5 +1,5 @@
 import { typeOfRedisClientType } from "@repo/redis/index"
-import {GetAssetbalMsg, Message, MessageSchema, PriceUpdateMsg, TradeCloseMsg, TradeOpenMsg} from "@repo/types/zodSchema"
+import {FetchOpenTradesMsg, GetAssetbalMsg, GetUserBalMsg, Message, MessageSchema, PriceUpdateMsg, TradeCloseMsg, TradeOpenMsg} from "@repo/types/zodSchema"
 import {AssetBal, EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
 import z from "zod"
 export class Engine {
@@ -12,6 +12,7 @@ export class Engine {
       
 
      private readonly streamKey = "stream:app:info";
+     private readonly responseStreamKey ="stream:engine:response";
      private readonly groupName = "group-1"
      private readonly consumerName ="consumer-1"
      private lastConsumedStreamId = "...d"
@@ -106,13 +107,27 @@ export class Engine {
       res = await this.handleTradeClose(TradeCloseMsg.parse(msg)) 
       case "get-asset-bal": 
       res = await this.handleGetAssetBalance(GetAssetbalMsg.parse(msg));
-
-
+     case "get-user-bal" : 
+     res = await this.handleGetUserBal(GetUserBalMsg.parse(msg))
+    case "fetch-open-trades" : 
+    res =await this.handleFetchOpenTrades(FetchOpenTradesMsg.parse(msg))
         
+  }
 
+  if(res){
+    await this.sendResponse(res);
   }
 
   } 
+
+  private async sendResponse(res:EngineResponseType):Promise<void>{
+    await this.enginePusher.xAdd(this.responseStreamKey,"*",{
+     type: res.type,
+     reqId :  res.reqId,
+      response : JSON.stringify(res.playload)
+    })
+}
+
 
   private async handlePriceUpdate(msg : z.infer<typeof PriceUpdateMsg>) {
             const tradePrices = JSON.parse(msg.tradePrices);
@@ -165,16 +180,8 @@ export class Engine {
               liquidated : true,
               userId,
 
-              }
-
-
-              
+              }              
             }
-
- 
-
-
-
 
                 }
 
@@ -184,7 +191,7 @@ export class Engine {
      
  }
 
- private async handleTradeOpen(msg:z.infer<typeof TradeOpenMsg>) : EngineResponseType{
+ private async handleTradeOpen(msg:z.infer<typeof TradeOpenMsg>) : Promise<EngineResponseType>{
 
 const  tradeInfo = JSON.parse(msg.tradeInfo) as {
   type : orderType,
@@ -288,9 +295,6 @@ const margin = (tradeInfo.openprice * tradeInfo.quantity) / (tradeInfo.leverage 
  this.openOrders[userId].push(order);
  
  
-
-
-
   this.userBalace[userId] = {
     balance : newBal ,
     decimal: 4 
@@ -459,7 +463,7 @@ private async handleGetAssetBalance (msg : z.infer<typeof GetAssetbalMsg>):Promi
     });
     
     return{
-      type : "get-asset-bal",
+      type : "get-asset-bal-ack",
       reqId : msg.reqId,
       playload : {
         assetBal
@@ -469,6 +473,44 @@ private async handleGetAssetBalance (msg : z.infer<typeof GetAssetbalMsg>):Promi
 
 }
 
+private handleGetUserBal (msg : z.infer<typeof GetUserBalMsg>):EngineResponseType {
+      
+     const userId = msg.userId;
+     const userBal = this.userBalace[userId];
+
+     if(!userBal){
+      return {
+        type : "get-user-bal",
+        reqId : msg.reqId,
+        playload : {
+          message : " User balance does not exist (does not found in userbalance)"
+        }
+      }
+     }
+
+     return {
+      type : "get-user-bal-ack",
+      reqId : msg.reqId,
+      playload : {
+       userBal
+      }
+    }
+
+}
+  
+private handleFetchOpenTrades(msg: z.infer<typeof FetchOpenTradesMsg>):EngineResponseType{
+    const userId = msg.userId,
+    const OpenTrades = this.openOrders[userId];  
+  
+  return{
+    type : "fetch-open-trades-ack",
+    reqId : msg.reqId,
+    playload : {
+      OpenTrades
+    }
+  }
+
+}
 
 }
 
