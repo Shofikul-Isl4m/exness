@@ -11,6 +11,10 @@ export const CreateOrderSchema = z.object({
     decimal : z.number()
 
 })
+
+export const CloseOrderSchema = z.object({
+    orderId : z.string()
+})
  
     
 

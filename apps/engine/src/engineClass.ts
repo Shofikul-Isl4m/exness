@@ -480,7 +480,7 @@ private handleGetUserBal (msg : z.infer<typeof GetUserBalMsg>):EngineResponseTyp
 
      if(!userBal){
       return {
-        type : "get-user-bal",
+        type : "get-user-bal-err",
         reqId : msg.reqId,
         playload : {
           message : " User balance does not exist (does not found in userbalance)"
