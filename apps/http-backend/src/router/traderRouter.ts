@@ -1,5 +1,5 @@
 import { Router } from "express";
-import router from ".";
+import { fetchClosedTrades, fetchOpenTrades, openTradeController, tradeCloseController } from "../controller/tradeController";
 
 
 const tradeRouter : Router = Router();
@@ -9,7 +9,7 @@ const tradeRouter : Router = Router();
 
 tradeRouter.post("/open",openTradeController);
 tradeRouter.get("/open",fetchOpenTrades);
-tradeRouter.post("/close",closeTradeController);
+tradeRouter.post("/close",tradeCloseController);
 tradeRouter.get("close" , fetchClosedTrades)
 
 

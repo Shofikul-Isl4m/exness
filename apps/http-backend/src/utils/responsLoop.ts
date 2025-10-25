@@ -49,6 +49,7 @@ async runLoop(){
       const assetBal = JSON.parse(res[0]!.messages[0]!.message.response!).assetBal;
       this.idResponseMap[reqId]?.resolve(assetBal);
       delete this.idResponseMap[reqId];
+      break;
       case "get-user-bal-ack":{
          const userBal = JSON.parse(res[0]!.messages[0]!.message.response!).userBal;
          this.idResponseMap[reqId]!.resolve(userBal);

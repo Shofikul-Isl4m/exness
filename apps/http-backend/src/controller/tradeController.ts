@@ -2,13 +2,14 @@ import { tradePusher } from "@repo/redis/queue";
 import { Request, Response } from "express";
 import {CloseOrderSchema, CreateOrderSchema} from "@repo/types/zodSchema"
 import { responseLoopObj } from "../utils/responsLoop";
+import prisma from "@repo/db/client"
 
 (async()=>{
     await tradePusher.connect()
 })()
 
 
- const openTradeController =async(req: Request,res:Response ) => {
+ export const openTradeController =async(req: Request,res:Response ) => {
 
     const validInput = CreateOrderSchema.safeParse(req.body);
 
@@ -47,7 +48,7 @@ import { responseLoopObj } from "../utils/responsLoop";
  }
 
 
- const fetchTradeController=async (req:Request ,res:Response) =>{
+ export const fetchOpenTrades=async (req:Request ,res:Response) =>{
    const userId = "1";
    const reqId = Date.now().toString() + crypto.randomUUID();
 try{
@@ -76,7 +77,7 @@ try{
 
 
 
- const tradeCloseController = async(req:Request,res:Response) => {
+export const tradeCloseController = async(req:Request,res:Response) => {
     const validInput = CloseOrderSchema.safeParse(req.body);
     if(!validInput.success){
         res.status(411).json({
@@ -111,6 +112,32 @@ try{
     
    }
   
+
+ }
+
+
+ export const fetchClosedTrades = async (req:Request,res:Response) => {
+  const userId  = "1"
+
+  try {
+    const trades = await prisma.existingTrades.findMany({
+      where : {
+        id : userId
+      }
+    })
+    res.json({
+      message : "fetch close trades",
+      trades
+    })
+  } catch (error) {
+    console.log(error)
+      res.status(411).json({
+        
+        message : `Closed Trades Unsuccessful ${error}`
+      })
+  } 
+   
+
 
  }
 

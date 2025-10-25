@@ -1,11 +1,13 @@
-import { typeOfRedisClientType } from "@repo/redis/index"
+import { TypeOfRedisClient } from "@repo/redis/index"
 import {FetchOpenTradesMsg, GetAssetbalMsg, GetUserBalMsg, Message, MessageSchema, PriceUpdateMsg, TradeCloseMsg, TradeOpenMsg} from "@repo/types/zodSchema"
 import {AssetBal, EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
 import z from "zod"
+import {primaClientType} from "@repo/db/client"
 export class Engine {
      constructor (
-        private readonly enginePuller : typeOfRedisClientType,
-        private readonly enginePusher : typeOfRedisClientType,
+        private readonly enginePuller : TypeOfRedisClient,
+        private readonly enginePusher : TypeOfRedisClient,
+        private readonly prisma : primaClientType,
         private readonly mongo : 
      )  {}
     
@@ -174,21 +176,22 @@ export class Engine {
 
               const closeOrder = {
               ...order,
-              closeOrder : assetPrice,
+              closePrice : assetPrice,
               pnl : pnlInt,
               decimal : 4,
               liquidated : true,
               userId,
 
-              }              
+              }   
+               await this.prisma.existingTrades.create({
+                data : {...closeOrder},
+                
+               })
+              
             }
-
-                }
-
-
             }
-        
-     
+  }
+             
  }
 
  private async handleTradeOpen(msg:z.infer<typeof TradeOpenMsg>) : Promise<EngineResponseType>{
@@ -423,12 +426,26 @@ private async handleTradeClose (msg : z.infer<typeof TradeCloseMsg>):Promise<Eng
   
   const closeOrder = {
     ...order,
-    pnlInt,
+    pnl : pnlInt,
     closePrice,
     decimal :4,
-    liqudated : false,
+    liquidated : false,
     userId ,
   }
+
+
+  await this.prisma.existingTrades.create({
+    data: {...closeOrder}
+  })
+
+  await this.prisma.user.update({
+    where : {
+      id : userId
+    },
+    data : {
+      balance :  this.userBalace[userId].balance,
+    }
+  })
 
   return {
    type : "trade-close-ack",

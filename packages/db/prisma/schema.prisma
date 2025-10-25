@@ -26,12 +26,24 @@ model ExistingTrades {
   id         String @id @default(uuid())
   openPrice  Int 
   leverage   Int
-  asset      Int 
+  asset      String 
   quantity   Float
+  margin     Int
   type       OrderType
   closePrice Int
   pnl        Int
+  decimal    Int
+  userId     String       
   liquidated Boolean
   createdAt  DateTime @default(now()) 
   
+}
+
+model User {
+
+  id String @id @default(uuid())
+  balance Int
+  decimal Int
+
+
 }
