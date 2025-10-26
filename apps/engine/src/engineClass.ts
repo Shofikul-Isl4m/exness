@@ -1,7 +1,7 @@
 import { TypeOfRedisClient } from "@repo/redis/index"
 import {FetchOpenTradesMsg, GetAssetbalMsg, GetUserBalMsg, Message, MessageSchema, PriceUpdateMsg, TradeCloseMsg, TradeOpenMsg} from "@repo/types/zodSchema"
 import {AssetBal, EngineResponseType, FilteredDataType, openOrders, orderType, userBalace} from "@repo/types/types"
-import z from "zod"
+import z, { date } from "zod"
 import {primaClientType} from "@repo/db/client"
 export class Engine {
      constructor (
@@ -45,13 +45,34 @@ export class Engine {
        } catch (error) {
         console.log("group exist");
        }
-     
 
+    await this.loadSnapShot()
+       const groups: {
+        name: string;
+        consumers: number;
+        pending: number;
+        'last-delivered-id': number;
+        'entries-read': number | null;
+        lag: number }[] =  await this.enginePuller.xInfoGroups(this.streamKey);
+       const lastDeliverdId = groups[0]?.["last-delivered-id"]?.toString();
+
+       if(lastDeliverdId && this.lastConsumedStreamId !== "" &&
+         lastDeliverdId === this.lastConsumedStreamId){
+            this.replay(this.lastConsumedStreamId,lastDeliverdId);  
+      
+         }
+     
+     this.lastSnapShotAt = Date.now();
          while(true){
             try {
-                this.enginePuller.xGroupSetId(this.streamKey,this.groupName,
-                    "$"
-              )
+              if(this.lastConsumedStreamId !== ""){
+                this.enginePuller.xAck(this.streamKey,
+                  this.groupName,
+                  this.lastConsumedStreamId);
+              }
+               
+        this.enginePuller.xGroupSetId(this.streamKey,
+                  this.groupName,"$")
              
           const res =  await this.enginePuller.xReadGroup(
              this.groupName,
@@ -97,6 +118,24 @@ export class Engine {
 
   }
 
+  private replay(fromId:string,toId:string){
+     const entries =  await this.enginePuller.xRange(this.streamKey,fromId,toId);
+     const missed = entries.slice(1);
+     for (const entry of missed){
+      try {
+          const msg = this.parseMessage(entry.message);
+          this.handleMessage(msg); 
+          this.enginePuller.xAck(this.streamKey,
+            this.groupName,
+            entry.id
+          );
+          this.lastConsumedStreamId = entry.id;
+      } catch (error) {
+        console.log("replay broke",error);
+      }   
+     }
+  }
+   
 
   private async handleMessage (msg:Message){
     let res : EngineResponseType | undefined = undefined;
@@ -163,7 +202,7 @@ export class Engine {
               if (pnlInt < -0.9 * lossTakingCapacityInt){
                       const newBlance = pnlInt + order.margin;
                        this.userBalace[userId] = {
-                        balance : this.userBalace[userId]!.balance + newBlance;
+                        balance : this.userBalace[userId]!.balance + newBlance,
                         decimal : 4
                        }
 
@@ -289,7 +328,8 @@ const margin = (tradeInfo.openprice * tradeInfo.quantity) / (tradeInfo.leverage 
 
  };
 
- (!this.openOrders[userId]){
+ if(!this.openOrders[userId]){
+
   this.openOrders[userId] = [];
 
  }
