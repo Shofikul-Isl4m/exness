@@ -3,7 +3,7 @@ import { subscriber } from "@repo/redis/pubsub";
 
 const wss = new WebSocketServer({ port: 8080 });
 
-async () => {
+(async () => {
   console.log("start ws");
   let isConnected = false;
   try {
@@ -24,9 +24,11 @@ async () => {
     })
   }
 
-  wss.on("connection",()=> {
-    console.log("connected to ws")
-  })
- 
 
-};
+})();
+
+
+
+wss.on("connection",() => {
+  console.log("connected to ws")
+})
