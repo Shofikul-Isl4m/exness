@@ -1,7 +1,7 @@
-import { useState } from "react";
+"use client"
 import useQuotesStore, { useQuotes } from "../lib/quotesStore";
 
-export const Trade = () => {
+ export const Trade = () => {
   useQuotes();
  const { selectedSymbol,setselectedSymbol,quotes  } = useQuotesStore();
 
@@ -9,6 +9,11 @@ export const Trade = () => {
 
 
 return(
+  <div className="w-screen  h-screen overflow-hidden">
+ 
+  Riaz
+  
+  </div>
 
   
 
@@ -21,4 +26,4 @@ return(
 
 
 
-export default Trade;
+

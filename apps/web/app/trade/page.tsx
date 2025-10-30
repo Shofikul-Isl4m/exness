@@ -1,4 +1,5 @@
-import Trade from "../components/Trade";
+import { Trade } from "../../components/Trade"
+
 
 const page = () => {
 
@@ -6,3 +7,6 @@ const page = () => {
 
 
 }
+
+
+export default page;

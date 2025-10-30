@@ -1,3 +1,5 @@
+"use client"
+
 import { create } from "zustand"
 import { QuotePayload, WsClient } from "./ws"
 import { useEffect } from "react"
@@ -20,9 +22,10 @@ export const useQuotesStore = create<QuoteState>((set) => ({
 export const useQuotes = () => {
 
     useEffect(()=>{
-        const { setQuotes} = useQuotesStore();
+       
         WsClient.connect();
     const unsubscribe = WsClient.subscribe((quotes:QuotePayload) => {
+        const {setQuotes} =useQuotesStore()
         const mapped : QuotePayload = {} 
         for(const [key,value] of Object.entries(quotes)){
           mapped[wstoSymbol(key)]  = value as typeof quotes[string] ;
