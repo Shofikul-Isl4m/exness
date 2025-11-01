@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+// UI package styles are now consolidated in globals.css
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

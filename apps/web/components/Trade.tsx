@@ -1,5 +1,6 @@
 "use client"
 import useQuotesStore, { useQuotes } from "../lib/quotesStore";
+import { Button } from "@repo/ui/Button";
 
  export const Trade = () => {
   useQuotes();
@@ -9,7 +10,16 @@ import useQuotesStore, { useQuotes } from "../lib/quotesStore";
 
 
 return(
-  <div className="w-screen  h-screen overflow-hidden">
+  <div className="w-screen h-screen overflow-hidden">
+    <nav className="flex h-full items-center justify-between border-b px-3 ">
+      Riaz
+          
+  
+      
+      
+ 
+      
+      </nav>
  
   Riaz
   
