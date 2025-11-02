@@ -6,7 +6,7 @@ type usdBalance = {
     decimal : number
 }
 
-const usdBalance = () => {
+ export const useUsdBalance = () => {
      return useQuery<usdBalance>({
         queryKey : ["balance.usd"],
         queryFn: async ()=>{
